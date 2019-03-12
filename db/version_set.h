@@ -107,6 +107,7 @@ class Version {
   int PickLevelForMemTableOutput(const Slice& smallest_user_key,
                                  const Slice& largest_user_key);
 
+  /** tianye 判断某层 level 的文件个数 */
   int NumFiles(int level) const { return files_[level].size(); }
 
   // Return a human readable string that describes this version's contents.
@@ -128,18 +129,22 @@ class Version {
                           void* arg,
                           bool (*func)(void*, int, FileMetaData*));
 
-  VersionSet* vset_;            // VersionSet to which this Version belongs
+  VersionSet* vset_;            // VersionSet to which this Version belongs, --TianYe 所有的 Version 都属于一个集合, 即 VersionSet
   Version* next_;               // Next version in linked list
   Version* prev_;               // Previous version in linked list
   int refs_;                    // Number of live refs to this version
 
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
-
+  
   // Next file to compact based on seek stats.
   FileMetaData* file_to_compact_;
   int file_to_compact_level_;
 
+  /** BY tianye
+   *  Compaction需要用compaction_score_来判断是否需要发起major compaction
+   *  这部分逻辑与某level所有SSTable file的大小有关系
+   **/
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
   // are initialized by Finalize().
@@ -250,6 +255,10 @@ class VersionSet {
   bool NeedsCompaction() const {
     Version* v = current_;
     return (v->compaction_score_ >= 1) || (v->file_to_compact_ != nullptr);
+	/**
+	 * @2018-10-22 BY tianye  如果某一层级文件的个数太多（指的是level0），
+	 *   或者某一层级的文件总大小太大，超过门限值，则设置 v->compaction_score 为一个大于1的数。
+	 */
   }
 
   // Add all files listed in any live version to *live.
@@ -312,6 +321,13 @@ class VersionSet {
 
   // Per-level key at which the next compaction at that level should start.
   // Either an empty string, or a valid InternalKey.
+  /** 
+   *  BY tianye @2018-10-13 
+   *  1. compact_pointer_[] 数组主要是标记每个 level 下次进行 compaction 时应该选择哪个文件.
+   *    compact_pointer_[] 里面是一个key数组，比如如果下次进行 compaction 的是 level i，
+   *    则应该选择 level i 中第一个 key 大于 compact_pointer_[i] 的文件, 同时会更新 compact_pointer_[i] ,
+   *    保证下次 compaction 会从一个新的文件进行。
+   */
   std::string compact_pointer_[config::kNumLevels];
 
   // No copying allowed

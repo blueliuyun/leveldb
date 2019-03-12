@@ -386,7 +386,7 @@ static int LockOrUnlock(int fd, bool lock) {
   f.l_whence = SEEK_SET;
   f.l_start = 0;
   f.l_len = 0;        // Lock/unlock entire file
-  return fcntl(fd, F_SETLK, &f);
+  return fcntl(fd, F_SETLK, &f); //---fcntl 系统调用来对文件加锁。
 }
 
 class PosixFileLock : public FileLock {

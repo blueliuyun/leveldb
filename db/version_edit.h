@@ -15,11 +15,11 @@ namespace leveldb {
 class VersionSet;
 
 struct FileMetaData {
-  int refs;
+  int refs;					  /** BY tianye 引用计数   */
   int allowed_seeks;          // Seeks allowed until compaction
-  uint64_t number;
-  uint64_t file_size;         // File size in bytes
-  InternalKey smallest;       // Smallest internal key served by table
+  uint64_t number;			  /** BY tianye SSTable file 文件名。 */	
+  uint64_t file_size;         // File size in bytes --- SSTable file 文件的长度。
+  InternalKey smallest;       // Smallest internal key served by table--- SSTable file 文件内的最小 key
   InternalKey largest;        // Largest internal key served by table
 
   FileMetaData() : refs(0), allowed_seeks(1 << 30), file_size(0) { }

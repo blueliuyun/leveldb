@@ -43,10 +43,17 @@ std::string InternalKey::DebugString() const {
   return result;
 }
 
+/** @2018-10-13 BY tianye   比较器的名字 */
 const char* InternalKeyComparator::Name() const {
   return "leveldb.InternalKeyComparator";
 }
 
+/**
+ * @2018-10-13 BY tianye   
+ * 1. 先比较 user key，不相等就直接返回。( user key 升序. )  
+ * 2. 若是 user key 相等则，使用user_compare 再比较 sequence number | value type, 这2个是降序。
+ *   这里，没有再比较后面的 value 了，因为 sequence number 是唯一的.
+ */
 int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
   // Order by:
   //    increasing user key (according to user-supplied comparator)
@@ -68,22 +75,28 @@ int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
 void InternalKeyComparator::FindShortestSeparator(
       std::string* start,
       const Slice& limit) const {
-  // Attempt to shorten the user portion of the key
+  // Attempt to shorten the user portion of the key ---@2018-10-13 BY tianye  尝试 user_key
   Slice user_start = ExtractUserKey(*start);
   Slice user_limit = ExtractUserKey(limit);
   std::string tmp(user_start.data(), user_start.size());
-  user_comparator_->FindShortestSeparator(&tmp, user_limit);
+  user_comparator_->FindShortestSeparator(&tmp, user_limit); // @2018-10-14 BY tianye InternalKey 间接调用 user_key 相应的成员函数。
   if (tmp.size() < user_start.size() &&
       user_comparator_->Compare(user_start, tmp) < 0) {
     // User key has become shorter physically, but larger logically.
     // Tack on the earliest possible number to the shortened user key.
     PutFixed64(&tmp, PackSequenceAndType(kMaxSequenceNumber,kValueTypeForSeek));
+	// @2018-10-14 BY tianye 使用最大的 sequence number 以保证是最新的 *start
     assert(this->Compare(*start, tmp) < 0);
     assert(this->Compare(tmp, limit) < 0);
     start->swap(tmp);
   }
 }
 
+/**
+ * @2018-10-14 BY tianye ???
+ * 1. 取出 internal key 的 user key 字段，根据 internal key 字段找到并替换 key ,如果 key 被替换了，
+ *   就用新的 key 更新 Internal Key，并使用最大的 sequence number。 否则保持不变。 ???
+ */
 void InternalKeyComparator::FindShortSuccessor(std::string* key) const {
   Slice user_key = ExtractUserKey(*key);
   std::string tmp(user_key.data(), user_key.size());

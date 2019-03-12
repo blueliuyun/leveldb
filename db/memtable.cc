@@ -108,6 +108,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
 bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   Slice memkey = key.memtable_key();
   Table::Iterator iter(&table_);
+  //---通过迭代器在跳跃表中查找，找到后解码（由于数据被按照二进制格式封装起来了）并组织结果返回。
   iter.Seek(memkey.data());
   if (iter.Valid()) {
     // entry format is:
@@ -122,6 +123,8 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     const char* entry = iter.key();
     uint32_t key_length;
     const char* key_ptr = GetVarint32Ptr(entry, entry+5, &key_length);
+
+	/** @2018-10-20 BY tianye  比较 user key，如果相同，则判断 tag，来确定是否是deleted key */
     if (comparator_.comparator.user_comparator()->Compare(
             Slice(key_ptr, key_length - 8),
             key.user_key()) == 0) {
@@ -134,7 +137,10 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
           return true;
         }
         case kTypeDeletion:
-          *s = Status::NotFound(Slice());
+          *s = Status::NotFound(Slice()); //---已经找到, 但是该 key 已经打上了删除的tag。
+          								  //---MemTable 删除的时候，并不是真正的删除，
+          								  //---而是找到对应的 key-value pair 在 internal key
+          								  //---的 ValueType 设置成 kTypeDeletion。
           return true;
       }
     }

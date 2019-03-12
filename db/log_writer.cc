@@ -33,6 +33,7 @@ Writer::Writer(WritableFile* dest, uint64_t dest_length)
 Writer::~Writer() {
 }
 
+/**@2018-10-31 TianYe 作用：在写入 MemTable 之前, 将当前的操作写入到 log 文件中。 */
 Status Writer::AddRecord(const Slice& slice) {
   const char* ptr = slice.data();
   size_t left = slice.size();

@@ -108,7 +108,8 @@ struct LEVELDB_EXPORT Options {
 
   // Number of keys between restart points for delta encoding of keys.
   // This parameter can be changed dynamically.  Most clients should
-  // leave this parameter alone.
+  // leave this parameter alone. --- 每间隔 16 个 Keys，levelDB 就会取消前缀压缩
+  // 而是存储整个 key ，这个存储这个 key 的点叫作 "重启点"
   //
   // Default: 16
   int block_restart_interval;
@@ -189,7 +190,7 @@ struct LEVELDB_EXPORT WriteOptions {
   // If true, the write will be flushed from the operating system
   // buffer cache (by calling WritableFile::Sync()) before the write
   // is considered complete.  If this flag is true, writes will be
-  // slower.
+  // slower. 
   //
   // If this flag is false, and the machine crashes, some recent
   // writes may be lost.  Note that if it is just the process that
@@ -201,11 +202,11 @@ struct LEVELDB_EXPORT WriteOptions {
   // with sync==true has similar crash semantics to a "write()"
   // system call followed by "fsync()".
   //
-  // Default: false
+  // Default: false //--- @2018-10-28 TianYe 如果置 ture 则每次写入都会将数据写入到磁盘中, 速度会拉低。
   bool sync;
 
   WriteOptions()
-      : sync(false) {
+      : sync(false) { //---默认是 false；
   }
 };
 

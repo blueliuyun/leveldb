@@ -30,6 +30,11 @@ class Slice;
 class WritableFile;
 
 class LEVELDB_EXPORT Env {
+ /**
+  * Env抽象化和操作系统相关的环境，这样方便用户定制。它主要提供了和文件系统相关的接口，比如
+  * 文件创建，读写等。还提供了和线程相关的接口，主要用在使用background线程去做compaction的
+  * 时候。
+  */
  public:
   Env() = default;
 
@@ -116,9 +121,9 @@ class LEVELDB_EXPORT Env {
   virtual Status RenameFile(const std::string& src,
                             const std::string& target) = 0;
 
-  // Lock the specified file.  Used to prevent concurrent access to
-  // the same db by multiple processes.  On failure, stores nullptr in
-  // *lock and returns non-OK.
+  // Lock the specified file.  Used to prevent concurrent access to		//---锁上指定的文件。
+  // the same db by multiple processes.  On failure, stores nullptr in	//---用于阻止多进程并发访问同一个 DB
+  // *lock and returns non-OK.											//---一旦执行失败, 存储 nullptr 到指针 *lock
   //
   // On success, stores a pointer to the object that represents the
   // acquired lock in *lock and returns OK.  The caller should call
@@ -198,8 +203,8 @@ class LEVELDB_EXPORT SequentialFile {
   virtual Status Skip(uint64_t n) = 0;
 };
 
-// A file abstraction for randomly reading the contents of a file.
-class LEVELDB_EXPORT RandomAccessFile {
+// A file abstraction for randomly reading the contents of a file. 
+class LEVELDB_EXPORT RandomAccessFile { //@2018-10-30 TianYe 对读取文件的封装
  public:
   RandomAccessFile() = default;
 
