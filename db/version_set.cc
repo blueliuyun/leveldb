@@ -761,7 +761,7 @@ class VersionSet::Builder {
       // same as the compaction of 40KB of data.  We are a little
       // conservative and allow approximately one seek for every 16KB
       // of data before triggering a compaction.
-      static_cast<int>((f->file_size / 16384U));
+      f->allowed_seeks = static_cast<int>((f->file_size / 16384U));
       if (f->allowed_seeks < 100) f->allowed_seeks = 100;	//如何设置 seeks 次数呢？文件大小除以16k，不到100算100
 
       levels_[level].deleted_files.erase(f->number);
