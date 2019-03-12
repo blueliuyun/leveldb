@@ -29,10 +29,6 @@ namespace leveldb {
 
 class Slice;
 
-/**
- * @2018-10-29 TianYe
- *  1. WriteBatch 的意思就是多个写并起来操作，支持多 key 写，而单 key 写就是 key 为 1 的特例。
- */
 class LEVELDB_EXPORT WriteBatch {
  public:
   WriteBatch();
@@ -43,7 +39,7 @@ class LEVELDB_EXPORT WriteBatch {
 
   ~WriteBatch();
 
-  // Store the mapping "key->value" in the database. --- TianYe 写入一条要插入数据的记录
+  // Store the mapping "key->value" in the database.
   void Put(const Slice& key, const Slice& value);
 
   // If the database contains a mapping for "key", erase it.  Else do nothing.
@@ -56,7 +52,7 @@ class LEVELDB_EXPORT WriteBatch {
   //
   // This number is tied to implementation details, and may change across
   // releases. It is intended for LevelDB usage metrics.
-  size_t ApproximateSize();
+  size_t ApproximateSize() const;
 
   // Copies the operations in "source" to this batch.
   //
@@ -78,7 +74,6 @@ class LEVELDB_EXPORT WriteBatch {
   friend class WriteBatchInternal;
 
   std::string rep_;  // See comment in write_batch.cc for the format of rep_
-  				     //---@2018-10-28 TianYe   只有一个 string 成员变量，来存放所有操作。
 };
 
 }  // namespace leveldb

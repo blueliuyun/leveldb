@@ -19,7 +19,6 @@ namespace leveldb {
 // Grouping of constants.  We may want to make some of these
 // parameters set via options.
 namespace config {
-/** BY tianye @2018-10-11 level 总层数 */
 static const int kNumLevels = 7;
 
 // Level-0 compaction is started when we hit this many files.
@@ -99,16 +98,11 @@ inline Slice ExtractUserKey(const Slice& internal_key) {
   return Slice(internal_key.data(), internal_key.size() - 8);
 }
 
-/**
- * BY tianye @2018-10-14
- * 1. Internal key 由 user key 和 sequence number 和 value type 组合而成的。
- *   因此需要 user key 的 comparator_ 成员来比较 user key。
- */
 // A comparator for internal keys that uses a specified comparator for
 // the user key portion and breaks ties by decreasing sequence number.
 class InternalKeyComparator : public Comparator {
  private:
-  const Comparator* user_comparator_; // BY tianye @2018-10-14 需要使用 user key 的比较函数
+  const Comparator* user_comparator_;
  public:
   explicit InternalKeyComparator(const Comparator* c) : user_comparator_(c) { }
   virtual const char* Name() const;

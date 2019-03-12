@@ -13,16 +13,12 @@ namespace leveldb {
 
 // Generate new filter every 2KB of data
 static const size_t kFilterBaseLg = 11;
-static const size_t kFilterBase = 1 << kFilterBaseLg; //--- 2 的 11 次方==2048==2 KB
+static const size_t kFilterBase = 1 << kFilterBaseLg;
 
 FilterBlockBuilder::FilterBlockBuilder(const FilterPolicy* policy)
     : policy_(policy) {
 }
 
-/**
- * 1. 这个函数负责一轮计算 Bloom Filter 的位图。
- * 2.  触发的时机是Flush函数，而 Flush 的时机是预测 Data Block 的 size 超过 options.block_size
- */
 void FilterBlockBuilder::StartBlock(uint64_t block_offset) {
   uint64_t filter_index = (block_offset / kFilterBase);
   assert(filter_index >= filter_offsets_.size());
@@ -31,7 +27,6 @@ void FilterBlockBuilder::StartBlock(uint64_t block_offset) {
   }
 }
 
-/** 当 TableBuilder 每次增加一个元素的时候，就会调用 AddKey(...) 函数 */
 void FilterBlockBuilder::AddKey(const Slice& key) {
   Slice k = key;
   start_.push_back(keys_.size());
@@ -65,7 +60,6 @@ void FilterBlockBuilder::GenerateFilter() {
   // Make list of keys from flattened key structure
   start_.push_back(keys_.size());  // Simplify length computation
   tmp_keys_.resize(num_keys);
-  /** 得到本轮的所有的 keys，放入 tmp_keys_ 数组 */
   for (size_t i = 0; i < num_keys; i++) {
     const char* base = keys_.data() + start_[i];
     size_t length = start_[i+1] - start_[i];
@@ -73,9 +67,7 @@ void FilterBlockBuilder::GenerateFilter() {
   }
 
   // Generate filter for current set of keys and append to result_.
-  /** 先记录下上一轮位图截止位置，防止位图的边界混淆 */
   filter_offsets_.push_back(result_.size());
-  /** 将本轮keys计算得来的位图追加到result_字符串 */
   policy_->CreateFilter(&tmp_keys_[0], static_cast<int>(num_keys), &result_);
 
   tmp_keys_.clear();

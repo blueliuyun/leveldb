@@ -290,8 +290,6 @@ int main(int argc, char** argv) {
     leveldb_approximate_sizes(db, 2, start, start_len, limit, limit_len, sizes);
     CheckCondition(sizes[0] > 0);
     CheckCondition(sizes[1] > 0);
-	printf("approximate_sizes : %ld \r\n", sizes[0]);
-	printf("approximate_sizes : %ld \r\n", sizes[1]);
   }
 
   StartPhase("property");

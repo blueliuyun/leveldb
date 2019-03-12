@@ -38,13 +38,11 @@ class FilterBlockBuilder {
   void GenerateFilter();
 
   const FilterPolicy* policy_;
-
-  /** 注意本轮 keys 产生的位图计算完毕后，会将 keys_, start_ , 还有 tmp_keys_ 清空 */
-  std::string keys_;              // Flattened key contents --- 暂时存放本轮所有keys，追加往后写入
-  std::vector<size_t> start_;     // Starting index in keys_ of each key ---记录本轮key与key之间的边界的位置，便于分割成多个key
-  std::string result_;            // Filter data computed so far---计算出来的位图，多轮计算则往后追加写入.
-  std::vector<Slice> tmp_keys_;   // policy_->CreateFilter() argument---将本轮的所有key，存入该vector，其实并无存在的必要，用临时变量即可
-  std::vector<uint32_t> filter_offsets_; //---计算出来的多个位图的边界位置，用于分隔多轮keys产生的位图
+  std::string keys_;              // Flattened key contents
+  std::vector<size_t> start_;     // Starting index in keys_ of each key
+  std::string result_;            // Filter data computed so far
+  std::vector<Slice> tmp_keys_;   // policy_->CreateFilter() argument
+  std::vector<uint32_t> filter_offsets_;
 
   // No copying allowed
   FilterBlockBuilder(const FilterBlockBuilder&);

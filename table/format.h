@@ -34,7 +34,7 @@ class BlockHandle {
   void EncodeTo(std::string* dst) const;
   Status DecodeFrom(Slice* input);
 
-  // Maximum encoding length of a BlockHandle --- 一个 BlockHandle 最多占用 20 个字节
+  // Maximum encoding length of a BlockHandle
   enum { kMaxEncodedLength = 10 + 10 };
 
  private:
