@@ -23,6 +23,10 @@
 
 namespace leveldb {
 
+/**
+ * @2018-10-29 TianYe
+ *  1. Slice 只是作者自己封装的 char 数组存储数据而已。
+ */
 class LEVELDB_EXPORT Slice {
  public:
   // Create an empty slice.

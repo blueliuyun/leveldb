@@ -133,7 +133,7 @@ static bool SaveError(char** errptr, const Status& s) {
   if (s.ok()) {
     return false;
   } else if (*errptr == nullptr) {
-    *errptr = strdup(s.ToString().c_str());
+    *errptr = strdup(s.ToString().c_str()); //---strdup用完要free()函数释放内存，否则内存泄露 
   } else {
     // TODO(sanjay): Merge with existing error?
     free(*errptr);

@@ -39,7 +39,7 @@ void WriteBatch::Clear() {
   rep_.resize(kHeader);
 }
 
-size_t WriteBatch::ApproximateSize() const {
+size_t WriteBatch::ApproximateSize() {
   return rep_.size();
 }
 
@@ -100,10 +100,10 @@ void WriteBatchInternal::SetSequence(WriteBatch* b, SequenceNumber seq) {
 }
 
 void WriteBatch::Put(const Slice& key, const Slice& value) {
-  WriteBatchInternal::SetCount(this, WriteBatchInternal::Count(this) + 1);
-  rep_.push_back(static_cast<char>(kTypeValue));
-  PutLengthPrefixedSlice(&rep_, key);
-  PutLengthPrefixedSlice(&rep_, value);
+  WriteBatchInternal::SetCount(this, WriteBatchInternal::Count(this) + 1); //---操作总数加++1
+  rep_.push_back(static_cast<char>(kTypeValue)); //---写入操作类型
+  PutLengthPrefixedSlice(&rep_, key); //---写入 key.size() 和 key.data()
+  PutLengthPrefixedSlice(&rep_, value); //---写入 value.size() 和 value.data()
 }
 
 void WriteBatch::Delete(const Slice& key) {

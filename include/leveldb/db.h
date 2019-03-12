@@ -132,6 +132,9 @@ class LEVELDB_EXPORT DB {
   // sizes will be one-tenth the size of the corresponding user data size.
   //
   // The results may not include the sizes of recently written data.
+  /** 
+   * @2018-10-13 BY tianye 该函数可以被用来得到一个或多个 key range 所占用的文件系统空间的近似大小。
+   */
   virtual void GetApproximateSizes(const Range* range, int n,
                                    uint64_t* sizes) = 0;
 

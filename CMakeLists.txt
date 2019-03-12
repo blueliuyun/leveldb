@@ -15,14 +15,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if (WIN32)
-  set(LEVELDB_PLATFORM_NAME LEVELDB_PLATFORM_WINDOWS)
-  # TODO(cmumford): Make UNICODE configurable for Windows.
-  add_definitions(-D_UNICODE -DUNICODE)
-else (WIN32)
-  set(LEVELDB_PLATFORM_NAME LEVELDB_PLATFORM_POSIX)
-endif (WIN32)
-
 option(LEVELDB_BUILD_TESTS "Build LevelDB's unit tests" ON)
 option(LEVELDB_BUILD_BENCHMARKS "Build LevelDB's benchmarks" ON)
 option(LEVELDB_INSTALL "Install LevelDB's header and library" ON)
@@ -38,14 +30,8 @@ check_library_exists(crc32c crc32c_value "" HAVE_CRC32C)
 check_library_exists(snappy snappy_compress "" HAVE_SNAPPY)
 check_library_exists(tcmalloc malloc "" HAVE_TCMALLOC)
 
-include(CheckCXXSymbolExists)
-# Using check_cxx_symbol_exists() instead of check_c_symbol_exists() because
-# we're including the header from C++, and feature detection should use the same
-# compiler language that the project will use later. Principles aside, some
-# versions of do not expose fdatasync() in <unistd.h> in standard C mode
-# (-std=c11), but do expose the function in standard C++ mode (-std=c++11).
-check_cxx_symbol_exists(fdatasync "unistd.h" HAVE_FDATASYNC)
-check_cxx_symbol_exists(F_FULLFSYNC "fcntl.h" HAVE_FULLFSYNC)
+include(CheckSymbolExists)
+check_symbol_exists(fdatasync "unistd.h" HAVE_FDATASYNC)
 
 include(CheckCXXSourceCompiles)
 
@@ -127,6 +113,7 @@ target_sources(leveldb
     "${PROJECT_SOURCE_DIR}/db/version_set.h"
     "${PROJECT_SOURCE_DIR}/db/write_batch_internal.h"
     "${PROJECT_SOURCE_DIR}/db/write_batch.cc"
+    "${PROJECT_SOURCE_DIR}/port/atomic_pointer.h"
     "${PROJECT_SOURCE_DIR}/port/port_stdcxx.h"
     "${PROJECT_SOURCE_DIR}/port/port.h"
     "${PROJECT_SOURCE_DIR}/port/thread_annotations.h"
@@ -186,19 +173,12 @@ target_sources(leveldb
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/write_batch.h"
 )
 
-if (WIN32)
-  target_sources(leveldb
-    PRIVATE
-      "${PROJECT_SOURCE_DIR}/util/env_windows.cc"
-      "${PROJECT_SOURCE_DIR}/util/windows_logger.h"
-  )
-else (WIN32)
-  target_sources(leveldb
-    PRIVATE
-      "${PROJECT_SOURCE_DIR}/util/env_posix.cc"
-      "${PROJECT_SOURCE_DIR}/util/posix_logger.h"
-  )
-endif (WIN32)
+# POSIX code is specified separately so we can leave it out in the future.
+target_sources(leveldb
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/util/env_posix.cc"
+    "${PROJECT_SOURCE_DIR}/util/posix_logger.h"
+)
 
 # MemEnv is not part of the interface and could be pulled to a separate library.
 target_sources(leveldb
@@ -217,7 +197,7 @@ target_compile_definitions(leveldb
     # Used by include/export.h when building shared libraries.
     LEVELDB_COMPILE_LIBRARY
     # Used by port/port.h.
-    ${LEVELDB_PLATFORM_NAME}=1
+    LEVELDB_PLATFORM_POSIX=1
 )
 if (NOT HAVE_CXX17_HAS_INCLUDE)
   target_compile_definitions(leveldb
@@ -279,7 +259,7 @@ if(LEVELDB_BUILD_TESTS)
     target_link_libraries("${test_target_name}" leveldb)
     target_compile_definitions("${test_target_name}"
       PRIVATE
-        ${LEVELDB_PLATFORM_NAME}=1
+        LEVELDB_PLATFORM_POSIX=1
     )
     if (NOT HAVE_CXX17_HAS_INCLUDE)
       target_compile_definitions("${test_target_name}"
@@ -328,12 +308,8 @@ if(LEVELDB_BUILD_TESTS)
     leveldb_test("${PROJECT_SOURCE_DIR}/util/logging_test.cc")
 
     # TODO(costan): This test also uses
-    #               "${PROJECT_SOURCE_DIR}/util/env_{posix|windows}_test_helper.h"
-    if (WIN32)
-      leveldb_test("${PROJECT_SOURCE_DIR}/util/env_windows_test.cc")
-    else (WIN32)
-      leveldb_test("${PROJECT_SOURCE_DIR}/util/env_posix_test.cc")
-    endif (WIN32)
+    #               "${PROJECT_SOURCE_DIR}/util/env_posix_test_helper.h"
+    leveldb_test("${PROJECT_SOURCE_DIR}/util/env_posix_test.cc")
   endif(NOT BUILD_SHARED_LIBS)
 endif(LEVELDB_BUILD_TESTS)
 
@@ -357,7 +333,7 @@ if(LEVELDB_BUILD_BENCHMARKS)
     target_link_libraries("${bench_target_name}" leveldb)
     target_compile_definitions("${bench_target_name}"
       PRIVATE
-        ${LEVELDB_PLATFORM_NAME}=1
+        LEVELDB_PLATFORM_POSIX=1
     )
     if (NOT HAVE_CXX17_HAS_INCLUDE)
       target_compile_definitions("${bench_target_name}"

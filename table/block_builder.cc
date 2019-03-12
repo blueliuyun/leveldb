@@ -81,10 +81,11 @@ void BlockBuilder::Add(const Slice& key, const Slice& value) {
     // See how much sharing to do with previous string
     const size_t min_length = std::min(last_key_piece.size(), key.size());
     while ((shared < min_length) && (last_key_piece[shared] == key[shared])) {
-      shared++;
+      shared++; // --- 计算 "前后 key" 重复的字节.
     }
   } else {
     // Restart compression
+    /* 新的重启点，记录下位置 */
     restarts_.push_back(buffer_.size());
     counter_ = 0;
   }

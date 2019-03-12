@@ -16,14 +16,14 @@ static uint32_t BloomHash(const Slice& key) {
 
 class BloomFilterPolicy : public FilterPolicy {
  private:
-  size_t bits_per_key_;
-  size_t k_;
+  size_t bits_per_key_; //--- 一个key占多少位
+  size_t k_;		    //--- 哈希函数个数
 
  public:
   explicit BloomFilterPolicy(int bits_per_key)
       : bits_per_key_(bits_per_key) {
     // We intentionally round down to reduce probing cost a little bit
-    k_ = static_cast<size_t>(bits_per_key * 0.69);  // 0.69 =~ ln(2)
+    k_ = static_cast<size_t>(bits_per_key * 0.69);  // 0.69 =~ ln(2)   ---有公式对应的 m/n， 理论上 bits_per_key 越大越好。
     if (k_ < 1) k_ = 1;
     if (k_ > 30) k_ = 30;
   }
@@ -32,28 +32,44 @@ class BloomFilterPolicy : public FilterPolicy {
     return "leveldb.BuiltinBloomFilter2";
   }
 
+  /** BY tianye @2018-10-17  keys : 本轮所有的 key；	n: 本轮所有的 key 的个数；	dst: 存放过滤器处理的结果 */
   virtual void CreateFilter(const Slice* keys, int n, std::string* dst) const {
     // Compute bloom filter size (in both bits and bytes)
-    size_t bits = n * bits_per_key_;
+    size_t bits = n * bits_per_key_; // n: 本轮所有的 key 的个数			bits : 最优的 bit 位数, 根据公式 k = (m/n) * ln2
 
     // For small n, we can see a very high false positive rate.  Fix it
-    // by enforcing a minimum bloom filter length.
+    // by enforcing a minimum bloom filter length. ---若  n  太小, 则 "虚警" 概率会很大
+    // --- 位列 bits 最小64位，8个字节
     if (bits < 64) bits = 64;
-
-    size_t bytes = (bits + 7) / 8;
-    bits = bytes * 8;
+	
+    size_t bytes = (bits + 7) / 8; //--- bits 位占多少个字节
+    bits = bytes * 8;  			   //--- !!! 得到真实的位列 bits !!!更新 bit 位数
 
     const size_t init_size = dst->size();
     dst->resize(init_size + bytes, 0);
+	//---在过滤器集合最后记录需要 k_ 次哈希
     dst->push_back(static_cast<char>(k_));  // Remember # of probes in filter
     char* array = &(*dst)[init_size];
+	// s1. 外层循环 n 即 每个key
     for (int i = 0; i < n; i++) {
       // Use double-hashing to generate a sequence of hash values.
       // See analysis in [Kirsch,Mitzenmacher 2006].
       uint32_t h = BloomHash(keys[i]);
       const uint32_t delta = (h >> 17) | (h << 15);  // Rotate right 17 bits
+      //--- 使用 k 个哈希函数，计算出 k 位，每位都赋值为 1。
+      //--- 为了减少哈希冲突，减少误判。      
+	  //--- s2. 内层循环是对每一个 key 计算 k 次 hash
       for (size_t j = 0; j < k_; j++) {
+	  	// ---得到元素在位列 bits 中的位置，一共  		  k_  个 Hash 函数.
         const uint32_t bitpos = h % bits;
+		/**
+		 * bitpos/8 计算元素在第几个字节；
+		 * (1 << (bitpos % 8)) 计算元素在字节的第几位；
+		 * 例如：
+		 * bitpos 的值为3， 则元素在第一个字节的第三位上，那么这位上应该赋值为1。
+		 * bitpos 的值为11，则元素在第二个字节的第三位上，那么这位上应该赋值为1。
+		 * 为什么要用 |= 运算，因为字节位上的值可能为1，那么新值赋值，还需要保留原来的值。
+		 */
         array[bitpos/8] |= (1 << (bitpos % 8));
         h += delta;
       }
@@ -71,8 +87,10 @@ class BloomFilterPolicy : public FilterPolicy {
     // bloom filters created using different parameters.
     const size_t k = array[len-1];
     if (k > 30) {
+		
       // Reserved for potentially new encodings for short bloom filters.
       // Consider it a match.
+      // --- 为短 bloom filter 保留，当前认为直接 match
       return true;
     }
 
@@ -80,6 +98,7 @@ class BloomFilterPolicy : public FilterPolicy {
     const uint32_t delta = (h >> 17) | (h << 15);  // Rotate right 17 bits
     for (size_t j = 0; j < k; j++) {
       const uint32_t bitpos = h % bits;
+	  // ---只要有一位为 0，说明元素肯定不在过滤器集合内。
       if ((array[bitpos/8] & (1 << (bitpos % 8))) == 0) return false;
       h += delta;
     }
