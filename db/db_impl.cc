@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <atomic>
 #include <set>
 #include <string>
 #include <vector>
@@ -145,10 +146,11 @@ DBImpl::DBImpl(const Options& raw_options, const std::string& dbname)
 	  //---leveldb 一共使用了两种 LRU Cache，它们的功能不同，一个是table_cache，一个是block_cache。
       table_cache_(new TableCache(dbname_, options_, TableCacheSize(options_))),
       db_lock_(nullptr),
-      shutting_down_(nullptr),
+      shutting_down_(false),
       background_work_finished_signal_(&mutex_), //---用于与后台线程交互的条件信号。
       mem_(nullptr), //---跳表初识为 NULL
       imm_(nullptr),
+      has_imm_(false),
       logfile_(nullptr),
       logfile_number_(0), //---log 文件的序号
       log_(nullptr),
@@ -158,14 +160,12 @@ DBImpl::DBImpl(const Options& raw_options, const std::string& dbname)
       manual_compaction_(nullptr),
       //--- 创建一个 Version 管理器
       versions_(new VersionSet(dbname_, &options_, table_cache_,
-                               &internal_comparator_)) {
-  has_imm_.Release_Store(nullptr);
-}
+                               &internal_comparator_)) {}
 
 DBImpl::~DBImpl() {
   // Wait for background work to finish
   mutex_.Lock();
-  shutting_down_.Release_Store(this);  // Any non-null value is ok
+  shutting_down_.store(true, std::memory_order_release);
   while (background_compaction_scheduled_) {
     background_work_finished_signal_.Wait();
   }
@@ -573,7 +573,7 @@ void DBImpl::CompactMemTable() {
   Status s = WriteLevel0Table(imm_, &edit, base);
   base->Unref();
 
-  if (s.ok() && shutting_down_.Acquire_Load()) {
+  if (s.ok() && shutting_down_.load(std::memory_order_acquire)) {
     s = Status::IOError("Deleting DB during memtable compaction");
   }
 
@@ -588,7 +588,7 @@ void DBImpl::CompactMemTable() {
     // Commit to the new state
     imm_->Unref();
     imm_ = nullptr;
-    has_imm_.Release_Store(nullptr);
+    has_imm_.store(false, std::memory_order_release);
     DeleteObsoleteFiles();
   } else {
     RecordBackgroundError(s);
@@ -637,7 +637,8 @@ void DBImpl::TEST_CompactRange(int level, const Slice* begin,
   }
 
   MutexLock l(&mutex_);
-  while (!manual.done && !shutting_down_.Acquire_Load() && bg_error_.ok()) {
+  while (!manual.done && !shutting_down_.load(std::memory_order_acquire) &&
+         bg_error_.ok()) {
     if (manual_compaction_ == nullptr) {  // Idle
       manual_compaction_ = &manual;
       MaybeScheduleCompaction();
@@ -679,7 +680,7 @@ void DBImpl::MaybeScheduleCompaction() {
   mutex_.AssertHeld();
   if (background_compaction_scheduled_) {
     // Already scheduled
-  } else if (shutting_down_.Acquire_Load()) {
+  } else if (shutting_down_.load(std::memory_order_acquire)) {
     // DB is being deleted; no more background compactions
   } else if (!bg_error_.ok()) {
     // Already got an error; no more changes
@@ -710,7 +711,7 @@ void DBImpl::BGWork(void* db) {
 void DBImpl::BackgroundCall() {
   MutexLock l(&mutex_);
   assert(background_compaction_scheduled_);
-  if (shutting_down_.Acquire_Load()) {
+  if (shutting_down_.load(std::memory_order_acquire)) {
     // No more background work when shutting down.
   } else if (!bg_error_.ok()) {
     // No more background work after a background error.
@@ -797,7 +798,7 @@ void DBImpl::BackgroundCompaction() {
 
   if (status.ok()) {
     // Done
-  } else if (shutting_down_.Acquire_Load()) {
+  } else if (shutting_down_.load(std::memory_order_acquire)) {
     // Ignore compaction errors found during shutting down
   } else {
     Log(options_.info_log,
@@ -964,9 +965,9 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   std::string current_user_key;
   bool has_current_user_key = false;
   SequenceNumber last_sequence_for_key = kMaxSequenceNumber;
-  for (; input->Valid() && !shutting_down_.Acquire_Load(); ) {
+  for (; input->Valid() && !shutting_down_.load(std::memory_order_acquire); ) {
     // Prioritize immutable compaction work
-    if (has_imm_.NoBarrier_Load() != nullptr) {
+    if (has_imm_.load(std::memory_order_relaxed)) {
       const uint64_t imm_start = env_->NowMicros();
       mutex_.Lock();
       if (imm_ != nullptr) {
@@ -1059,7 +1060,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
     input->Next();
   }
 
-  if (status.ok() && shutting_down_.Acquire_Load()) {
+  if (status.ok() && shutting_down_.load(std::memory_order_acquire)) {
     status = Status::IOError("Deleting DB during compaction");
   }
   if (status.ok() && compact->builder != nullptr) {
@@ -1482,7 +1483,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       logfile_number_ = new_log_number;
       log_ = new log::Writer(lfile);
       imm_ = mem_; //---切换 memtable 到 Imuable memtable 。
-      has_imm_.Release_Store(imm_);	  
+      has_imm_.store(true, std::memory_order_release);
       /** Ma.s6	到达 .s6 说明旧的 Imuable memtable 已经 compact 到磁盘了，level 0 的文件数目也符合要求，这时候就可以生成新的 memtable 用于数据的写入了。 */
       mem_ = new MemTable(internal_comparator_);
       mem_->Ref();
