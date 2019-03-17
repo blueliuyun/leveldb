@@ -15,7 +15,7 @@ namespace leveldb {
 class VersionSet;
 
 struct FileMetaData {
-  int refs;					  /** BY tianye 引用计数   */
+  int refs;					      /** BY tianye 引用计数   */
   int allowed_seeks;          // Seeks allowed until compaction
   uint64_t number;			  /** BY tianye SSTable file 文件名。 */	
   uint64_t file_size;         // File size in bytes --- SSTable file 文件的长度。
@@ -86,6 +86,7 @@ class VersionEdit {
 
   typedef std::set< std::pair<int, uint64_t> > DeletedFileSet;
 
+  /** @2019-03-17 tianye  下面的数据成员会在序列化后写入 manifest 文件; 这些字段不一定必然存在. */
   std::string comparator_;
   uint64_t log_number_;
   uint64_t prev_log_number_;

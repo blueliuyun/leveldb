@@ -9,6 +9,10 @@
 
 namespace leveldb {
 
+/** @2019-03-17 LevelDB在写入每个字段之前，
+ *   都会先写入一个 varint 型数字来标记后面的字段类型。
+ *   在读取时，先读取此字段，根据类型解析后面的信息。 
+ **/
 // Tag numbers for serialized VersionEdit.  These numbers are written to
 // disk and should not be changed.
 enum Tag {
