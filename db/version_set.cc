@@ -352,7 +352,7 @@ Status Version::Get(const ReadOptions& options,
   FileMetaData* tmp2;
   //---@2018-10-29 TianYe 
   //---    从 Level-0 层开始查找，直到最大的 level 层，如果中间找到就直接返回了。
-  //----1. 特别强调一下，Level-0 的数据是 Imuable memtable 直接 dump 到磁盘的，所以该层
+  //----1. 特别强调一下，Level-0 的数据是 Immuable memtable 直接 dump 到磁盘的，所以该层
   //----   文件与文件之间的 Key 有可能重叠 (overlap) 的。
   //----2. 而 Level n（n>0）中每个 sst 文件之间 Key 是不重叠的，且 Key 在该层 Level 中是
   //----   全局有序的（ 注意是仅在该 level 层中）。
@@ -431,7 +431,7 @@ Status Version::Get(const ReadOptions& options,
       }
       switch (saver.state) { //---查找结果返回。
         case kNotFound:
-          break;      // Keep searching in other files
+          break;      // Keep searching in other files ...  Next ... ... ++i
         case kFound:
           return s;
         case kDeleted:
