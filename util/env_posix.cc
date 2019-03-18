@@ -558,6 +558,7 @@ class PosixEnv : public Env {
     return Status::OK();
   }
 
+  /** @2019-03-18 判断文件是否已经存在.     	   */
   bool FileExists(const std::string& filename) override {
     return ::access(filename.c_str(), F_OK) == 0;
   }
@@ -578,6 +579,9 @@ class PosixEnv : public Env {
   }
 
   Status DeleteFile(const std::string& filename) override {
+    /** @2019-03-18 unlink从文件系统中中删除一个名字，若这个名字是指向这个文件的最后一个链接，
+     *  并且没有进程处于打开这个文件的状态，则删除这个文件，释放这个文件占用的空间。 	
+     **/
     if (::unlink(filename.c_str()) != 0) {
       return PosixError(filename, errno);
     }
