@@ -1168,7 +1168,7 @@ Status DBImpl::Get(const ReadOptions& options,
   SequenceNumber snapshot; //---版本号, 可以读取指定版本的数据, 否则读取最新版本的数据。
   //---g.s1. 注意 : 读取的时候数据也是会有插入操作的，假如 Get 请求先到来, 而 Put 后插入一条数据, 这时候新数据并不会被读取到。
   if (options.snapshot != nullptr) {
-  	//---读取指定版本的数据，只读取该版本号之前的数据。
+  	//---读取指定版本的数据，只读取该版本号之前的数据。   注意下面的 static_cast<*> 基类和派生类指针类型转换
     snapshot =
         static_cast<const SnapshotImpl*>(options.snapshot)->sequence_number();
   } else {
@@ -1205,7 +1205,7 @@ Status DBImpl::Get(const ReadOptions& options,
   }
 
   if (have_stat_update && current->UpdateStats(stats)) {
-    MaybeScheduleCompaction(); //---g.s6. 检查是否要进行 compaction 操作。
+    MaybeScheduleCompaction(); //---g.s6. 检查是否要进行 compaction 操作。 ---@20190318 执行到此行代码时就可能会触发 seek compaction ...
   }
 
   //---g.s7. 释放引用计数。
@@ -1270,8 +1270,8 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   Writer w(&mutex_);
   w.batch = my_batch;
-  w.sync = options.sync; //---log 是否马上刷到磁盘,如果 false 会有数据丢失的风险。
-  w.done = false; //---标记写入是否完成。
+  w.sync = options.sync; //---log 是否马上刷到磁盘, 如果 false 会有数据丢失的风险。
+  w.done = false;        //---标记写入是否完成。
 
   //---w.s1 队列化 writer, 如果有其他 writer 在执行，则 my_batch 进入队列并等待被唤醒执行。！！小心，这是阻塞操作。
   MutexLock l(&mutex_);
@@ -1416,7 +1416,7 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
 
 // REQUIRES: mutex_ is held
 // REQUIRES: this thread is currently at the front of the writer queue
-//--- 写入前的各种检查 : 是否该停写, 是否该切 memtable, 是否该 compact。
+//--- 写入前的各种检查 : 是否该停写, 是否该切换 memtable, 是否该 compact。
 Status DBImpl::MakeRoomForWrite(bool force) {
   mutex_.AssertHeld(); //---保证进入该函数前已经加锁。
   assert(!writers_.empty());
