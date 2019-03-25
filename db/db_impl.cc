@@ -524,7 +524,7 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
   Status s;
   {
     mutex_.Unlock();
-	//---将 Immutale MemTable 中的内容写入到 SSTable。
+	// s.w1 将 Immutale MemTable 中的内容写入到 SSTable。 
     s = BuildTable(dbname_, env_, options_, table_cache_, iter, &meta);
     mutex_.Lock();
   }
@@ -544,8 +544,10 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
     const Slice min_user_key = meta.smallest.user_key();
     const Slice max_user_key = meta.largest.user_key();
     if (base != nullptr) {
+      // s.w2
       level = base->PickLevelForMemTableOutput(min_user_key, max_user_key);
     }
+	// s.w3
     edit->AddFile(level, meta.number, meta.file_size,
                   meta.smallest, meta.largest);
   }
@@ -558,9 +560,9 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
 }
 
 /**
- * @2018-10-21 BY tianye
- * 1. 将内存中的 MemTable dump 到磁盘上，形成 SSTable 文件。
- * 
+ * @2018-10-21 + 2019-03-19 BY tianye
+ * 1. 将内存中的 imm_ MemTable dump 到磁盘上，形成 SSTable 文件 ;  
+ *   对应的是 minor compaction 的流程...
  */
 void DBImpl::CompactMemTable() {
   mutex_.AssertHeld();
@@ -570,6 +572,7 @@ void DBImpl::CompactMemTable() {
   VersionEdit edit;
   Version* base = versions_->current();
   base->Ref();
+  //# s.c1 
   Status s = WriteLevel0Table(imm_, &edit, base);
   base->Unref();
 
@@ -581,6 +584,7 @@ void DBImpl::CompactMemTable() {
   if (s.ok()) {
     edit.SetPrevLogNumber(0);
     edit.SetLogNumber(logfile_number_);  // Earlier logs no longer needed
+    //# s.c2 
     s = versions_->LogAndApply(&edit, &mutex_);
   }
 
